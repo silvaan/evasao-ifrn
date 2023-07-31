@@ -13,7 +13,11 @@ st.set_page_config(
 
 @st.cache_data 
 def load_data() -> pd.DataFrame:
-    return pd.read_csv('clean_data.csv')
+    df = pd.read_csv('clean_data.csv')
+    df['Código Curso'] = df['Código Curso'].astype(str)
+    df['Ano de Ingresso'] = df['Ano de Ingresso'].astype(str)
+    df['Período Atual'] = df['Período Atual'].astype(str)
+    return df
 
 df = load_data()
 
@@ -38,6 +42,7 @@ with st.form(key='filter_form'):
 
     submit_button = st.form_submit_button(label='Aplicar')
 
+
 if submit_button:
     selections = {'Campus': campus, 'Código Curso': curso, 'Período Atual': periodo_atual, 'Ano de Ingresso': ano}
     selected_variables = [key for key, value in selections.items() if value]
@@ -46,25 +51,25 @@ if submit_button:
         st.warning('Selecione apenas duas variáveis.')
         selected_variables = selected_variables[:2]
 
-    df_situacao = df[df[situacao] == True]
-    grouped_df = df_situacao.groupby(selected_variables).size().reset_index(name='Quantidade')
+    situacao_counts = df[df[situacao] == True].groupby(selected_variables).size()
+    situacao_df = situacao_counts.reset_index(name='Quantidade')
 
-    if len(selected_variables) == 1:
-        fig = px.bar(
-            grouped_df, 
-            x=selected_variables[0], 
-            y='Quantidade', 
-            title=f'Quantidade de {situacao} por {selected_variables[0]}',
-            barmode='group'
-        )
+    if valores == 'Porcentagens':
+        total_counts = df.groupby(selected_variables).size()
+        situacao_counts = 100 * (situacao_counts / total_counts)
+        y_label = 'Porcentagem'
     else:
-        fig = px.bar(
-            grouped_df, 
-            x=selected_variables[0], 
-            y='Quantidade', 
-            color=selected_variables[1],
-            title=f'Quantidade de {situacao} por {selected_variables[0]} e {selected_variables[1]}',
-            barmode='group'
-        )
+        y_label = 'Quantidade'
+
+    situacao_df = situacao_counts.reset_index(name=y_label)
+
+    fig = px.bar(
+        situacao_df,
+        x=selected_variables[0],
+        y=y_label,
+        color=None if len(selected_variables) == 1 else selected_variables[1],
+        title=f'{y_label} de {situacao} por {" e ".join(selected_variables)}',
+        barmode='group'
+    )
     
     st.plotly_chart(fig)
